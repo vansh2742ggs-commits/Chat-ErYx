@@ -1,195 +1,187 @@
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TweenService = game:GetService("TweenService")
 local player = Players.LocalPlayer
 
 -- 1. ANIMATED ROLEPLAY NAME SYSTEM
 task.spawn(function()
     local rpName = "🌌 ErYx Chat User🌌"
     local remote = ReplicatedStorage:WaitForChild("RE"):WaitForChild("1RPNam1eTex1t")
-    if remote then 
-        remote:FireServer(rpName) 
-    end
+    if remote then remote:FireServer(rpName) end
 end)
+
+-- 2. PRIVATE COMMUNICATION SETUP (The "Bridge")
+-- This creates a folder in ReplicatedStorage that only script users interact with
+local BridgeFolder = ReplicatedStorage:FindFirstChild("ErYx_Private_Bridge")
+if not BridgeFolder then
+    BridgeFolder = Instance.new("Folder", ReplicatedStorage)
+    BridgeFolder.Name = "ErYx_Private_Bridge"
+end
+
+local SharedEvent = BridgeFolder:FindFirstChild("GlobalMsg")
+if not SharedEvent then
+    -- We use a StringValue as a 'Pseudo-Remote' for script-to-script talk
+    SharedEvent = Instance.new("StringValue", BridgeFolder)
+    SharedEvent.Name = "GlobalMsg"
+end
 
 -- THEME COLORS
 local LAVENDER_WHITE = Color3.fromRGB(240, 235, 255) 
 local WHITE = Color3.fromRGB(255, 255, 255)
 local SKY_BLUE = Color3.fromRGB(215, 240, 255) 
 local PURPLE = Color3.fromRGB(128, 0, 128)
-local GOLD = Color3.fromRGB(255, 215, 100) -- Special Owner Notification Color
+local GOLD = Color3.fromRGB(255, 220, 110)
 
 -- OWNER CHECK
 local function isOwner(uName)
-    local owners = {"NOT_ALPHA4567", "xCQxErYx_VaNsHx"}
-    for _, owner in pairs(owners) do
-        if uName == owner then return true end
-    end
-    return false
+    local owners = {["NOT_ALPHA4567"] = true, ["xCQxErYx_VaNsHx"] = true}
+    return owners[uName] or false
 end
 
--- 2. GUI ROOT
+-- 3. GUI ROOT
 local ScreenGui = Instance.new("ScreenGui", player.PlayerGui)
-ScreenGui.Name = "ErYx_V21_OwnerSpecial"
+ScreenGui.Name = "ErYx_V24_PrivateLink"
 ScreenGui.ResetOnSpawn = false
 
--- TOGGLE ICON
-local Toggle = Instance.new("TextButton", ScreenGui)
-Toggle.Size = UDim2.new(0, 35, 0, 35)
-Toggle.Position = UDim2.new(0, 10, 0.5, -17)
-Toggle.BackgroundColor3 = PURPLE
-Toggle.Text = "💬"
-Toggle.TextColor3 = WHITE
-Toggle.TextSize = 18
-Instance.new("UICorner", Toggle).CornerRadius = UDim.new(1, 0)
-
--- MAIN HUB FRAME
+-- MAIN FRAME
 local Main = Instance.new("Frame", ScreenGui)
-Main.Size = UDim2.new(0, 350, 0, 220) 
-Main.Position = UDim2.new(0.5, -175, 0.5, -110)
+Main.Size = UDim2.new(0, 350, 0, 250) 
+Main.Position = UDim2.new(0.5, -175, 0.5, -125)
 Main.BackgroundColor3 = LAVENDER_WHITE
-Main.Active = true
-Main.ClipsDescendants = true
 Instance.new("UIStroke", Main).Color = WHITE
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 10)
 
 -- HEADER / DRAG
 local Header = Instance.new("TextButton", Main)
-Header.Size = UDim2.new(1, 0, 0, 22)
+Header.Size = UDim2.new(1, 0, 0, 25)
 Header.BackgroundColor3 = WHITE
 Header.BackgroundTransparency = 0.5
-Header.Text = "   ErYx Server Hub"
+Header.Text = "   🌌 ErYx PRIVATE CHAT"
 Header.Font = Enum.Font.GothamBold
-Header.TextSize = 11
+Header.TextSize = 12
 Header.TextXAlignment = Enum.TextXAlignment.Left
 
 -- CHAT DISPLAY
 local ChatBox = Instance.new("ScrollingFrame", Main)
-ChatBox.Size = UDim2.new(0.96, 0, 0.7, 0)
-ChatBox.Position = UDim2.new(0.02, 0, 0.12, 0)
+ChatBox.Size = UDim2.new(0.94, 0, 0.65, 0)
+ChatBox.Position = UDim2.new(0.03, 0, 0.12, 0)
 ChatBox.BackgroundTransparency = 1
 ChatBox.AutomaticCanvasSize = Enum.AutomaticSize.Y
 ChatBox.ScrollBarThickness = 2
 local Layout = Instance.new("UIListLayout", ChatBox)
-Layout.Padding = UDim.new(0, 4)
+Layout.Padding = UDim.new(0, 5)
 Layout.VerticalAlignment = Enum.VerticalAlignment.Bottom
 
--- 3. NOTIFICATION POPUP SYSTEM
-local function CreatePopup(sender, text, isOwnerMsg)
+-- 4. NOTIFICATION TOAST
+local function CreatePopup(sender, text, creator)
     local popup = Instance.new("Frame", ScreenGui)
-    popup.Size = UDim2.new(0, 320, 0, 45)
-    popup.Position = UDim2.new(0.5, -160, -0.15, 0) 
-    
-    -- Change color if Owner
-    popup.BackgroundColor3 = isOwnerMsg and GOLD or LAVENDER_WHITE
+    popup.Size = UDim2.new(0, 300, 0, 45)
+    popup.Position = UDim2.new(0.5, -150, -0.2, 0)
+    popup.BackgroundColor3 = creator and GOLD or WHITE
     Instance.new("UICorner", popup)
-    
-    local stroke = Instance.new("UIStroke", popup)
-    stroke.Color = isOwnerMsg and Color3.fromRGB(255, 100, 0) or PURPLE
-    stroke.Thickness = isOwnerMsg and 2 or 1
+    Instance.new("UIStroke", popup).Color = PURPLE
 
     local lbl = Instance.new("TextLabel", popup)
     lbl.Size = UDim2.new(1, -20, 1, 0)
     lbl.Position = UDim2.new(0, 10, 0, 0)
     lbl.BackgroundTransparency = 1
     lbl.Font = Enum.Font.SourceSansBold
-    lbl.TextSize = 13
-    lbl.TextColor3 = Color3.new(0,0,0)
-    lbl.Text = (isOwnerMsg and "👑 " or "") .. sender .. ": " .. text
+    lbl.Text = sender .. ": " .. text
     lbl.TextWrapped = true
 
-    -- Animation
-    popup:TweenPosition(UDim2.new(0.5, -160, 0.03, 0), "Out", "Back", 0.5, true)
-    task.delay(4, function()
+    popup:TweenPosition(UDim2.new(0.5, -150, 0.05, 0), "Out", "Back", 0.4, true)
+    task.delay(3, function()
         if popup then
-            popup:TweenPosition(UDim2.new(0.5, -160, -0.15, 0), "In", "Quad", 0.5, true, function()
-                popup:Destroy()
-            end)
+            popup:TweenPosition(UDim2.new(0.5, -150, -0.2, 0), "In", "Quad", 0.4, true, function() popup:Destroy() end)
         end
     end)
 end
 
--- 4. MESSAGE HANDLING
-local msgCount = 0
-local function addMessage(sender, text)
-    msgCount = msgCount + 1
-    local ownerStatus = isOwner(sender)
-    
-    -- Cleanup old messages
-    local current = ChatBox:GetChildren()
-    local frames = {}
-    for _, v in pairs(current) do if v:IsA("Frame") then table.insert(frames, v) end end
-    if #frames >= 30 then frames[1]:Destroy() end
+-- 5. ADD MESSAGE TO GUI
+local function addMsg(sender, text)
+    local creator = isOwner(sender)
+    local msgFrame = Instance.new("Frame", ChatBox)
+    msgFrame.Size = UDim2.new(1, 0, 0, 0)
+    msgFrame.AutomaticSize = Enum.AutomaticSize.Y
+    msgFrame.BackgroundColor3 = creator and GOLD or SKY_BLUE
+    Instance.new("UICorner", msgFrame)
 
-    local msg = Instance.new("Frame", ChatBox)
-    msg.Size = UDim2.new(1, -10, 0, 0)
-    msg.AutomaticSize = Enum.AutomaticSize.Y
-    msg.BackgroundColor3 = ownerStatus and GOLD or SKY_BLUE
-    Instance.new("UICorner", msg).CornerRadius = UDim.new(0, 4)
-
-    local txt = Instance.new("TextLabel", msg)
+    local txt = Instance.new("TextLabel", msgFrame)
     txt.Size = UDim2.new(1, -10, 1, 0)
     txt.Position = UDim2.new(0, 5, 0, 0)
     txt.BackgroundTransparency = 1
+    txt.Text = (creator and "👑 " or "") .. sender .. ": " .. text
+    txt.Font = creator and Enum.Font.SourceSansBold or Enum.Font.SourceSans
     txt.TextWrapped = true
-    txt.TextSize = 11
-    txt.Font = ownerStatus and Enum.Font.SourceSansBold or Enum.Font.SourceSans
-    txt.Text = (ownerStatus and "[OWNER] " or "") .. sender .. ": " .. text
     txt.TextXAlignment = Enum.TextXAlignment.Left
 
-    task.defer(function()
-        ChatBox.CanvasPosition = Vector2.new(0, ChatBox.AbsoluteContentSize.Y)
-    end)
-    
-    CreatePopup(sender, text, ownerStatus)
+    task.defer(function() ChatBox.CanvasPosition = Vector2.new(0, ChatBox.AbsoluteContentSize.Y) end)
+    CreatePopup(sender, text, creator)
 end
 
--- 5. SERVER CONNECTION
-local function connectPlayer(p)
-    p.Chatted:Connect(function(msg) addMessage(p.Name, msg) end)
-end
-for _, p in pairs(Players:GetPlayers()) do connectPlayer(p) end
-Players.PlayerAdded:Connect(connectPlayer)
+-- 6. THE "SYNC" SCRIPT LOGIC
+-- Listen for when the Shared Value changes (this is the script-to-script connection)
+SharedEvent.Changed:Connect(function()
+    local data = SharedEvent.Value
+    if data ~= "" then
+        local split = data:split("|||") -- We use a separator to tell sender apart from msg
+        local senderName = split[1]
+        local messageText = split[2]
+        if senderName and messageText then
+            addMsg(senderName, messageText)
+        end
+    end
+end)
 
--- 6. INPUT AREA
+-- 7. INPUT AREA
 local Input = Instance.new("TextBox", Main)
-Input.Size = UDim2.new(0.72, 0, 0, 25)
-Input.Position = UDim2.new(0.02, 0, 0.86, 0)
+Input.Size = UDim2.new(0.7, 0, 0, 30)
+Input.Position = UDim2.new(0.03, 0, 0.85, 0)
 Input.BackgroundColor3 = WHITE
-Input.PlaceholderText = "Type..." 
+Input.PlaceholderText = "Type to script users..." 
 Input.Text = ""
 Instance.new("UICorner", Input)
 
-local SendBtn = Instance.new("TextButton", Main)
-SendBtn.Size = UDim2.new(0, 65, 0, 25)
-SendBtn.Position = UDim2.new(0.78, 0, 0.86, 0)
-SendBtn.Text = "Send"
-SendBtn.BackgroundColor3 = WHITE
-Instance.new("UICorner", SendBtn)
+local Send = Instance.new("TextButton", Main)
+Send.Size = UDim2.new(0, 70, 0, 30)
+Send.Position = UDim2.new(0.75, 0, 0.85, 0)
+Send.Text = "SEND"
+Send.BackgroundColor3 = WHITE
+Instance.new("UICorner", Send)
 
-local function sendMessage()
-    local t = Input.Text
-    if t ~= "" and t:gsub("%s+", "") ~= "" then
-        local say = ReplicatedStorage:FindFirstChild("DefaultChatSystemChatEvents"):FindFirstChild("SayMessageRequest")
-        if say then say:FireServer(t, "All") end
+local function broadcast()
+    if Input.Text ~= "" then
+        -- Instead of sending to game chat, we update the shared Value
+        SharedEvent.Value = player.Name .. "|||" .. Input.Text
+        
+        -- Reset value quickly so it can be triggered again by the same person
+        task.wait(0.1)
+        SharedEvent.Value = ""
+        
         Input.Text = ""
     end
 end
 
-SendBtn.MouseButton1Click:Connect(sendMessage)
-Input.FocusLost:Connect(function(enter) if enter then sendMessage() end end)
+Send.MouseButton1Click:Connect(broadcast)
+Input.FocusLost:Connect(function(e) if e then broadcast() end end)
 
--- UI TOGGLES / DRAG
+-- TOGGLE / DRAG
+local Toggle = Instance.new("TextButton", ScreenGui)
+Toggle.Size = UDim2.new(0, 35, 0, 35)
+Toggle.Position = UDim2.new(0, 10, 0.5, -17)
+Toggle.BackgroundColor3 = PURPLE
+Toggle.Text = "🌌"
+Instance.new("UICorner", Toggle).CornerRadius = UDim.new(1,0)
 Toggle.MouseButton1Click:Connect(function() Main.Visible = not Main.Visible end)
-local dragging, dragStart, startPos
-Header.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true dragStart = input.Position startPos = Main.Position end
-end)
-UserInputService.InputChanged:Connect(function(input)
-    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-        local delta = input.Position - dragStart
-        Main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+
+local d, ds, sp
+Header.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then d = true ds = i.Position sp = Main.Position end end)
+UserInputService.InputChanged:Connect(function(i)
+    if d and i.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = i.Position - ds
+        Main.Position = UDim2.new(sp.X.Scale, sp.X.Offset + delta.X, sp.Y.Scale, sp.Y.Offset + delta.Y)
     end
 end)
-UserInputService.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end end)
+UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then d = false end end)
+
+
