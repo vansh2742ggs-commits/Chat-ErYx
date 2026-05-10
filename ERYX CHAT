@@ -10,20 +10,12 @@ task.spawn(function()
     if remote then remote:FireServer(rpName) end
 end)
 
--- 2. PRIVATE COMMUNICATION SETUP (The "Bridge")
--- This creates a folder in ReplicatedStorage that only script users interact with
-local BridgeFolder = ReplicatedStorage:FindFirstChild("ErYx_Private_Bridge")
-if not BridgeFolder then
-    BridgeFolder = Instance.new("Folder", ReplicatedStorage)
-    BridgeFolder.Name = "ErYx_Private_Bridge"
-end
+-- 2. THE PRIVATE BRIDGE (Ensures it exists)
+local BridgeFolder = ReplicatedStorage:FindFirstChild("ErYx_Private_Bridge") or Instance.new("Folder", ReplicatedStorage)
+BridgeFolder.Name = "ErYx_Private_Bridge"
 
-local SharedEvent = BridgeFolder:FindFirstChild("GlobalMsg")
-if not SharedEvent then
-    -- We use a StringValue as a 'Pseudo-Remote' for script-to-script talk
-    SharedEvent = Instance.new("StringValue", BridgeFolder)
-    SharedEvent.Name = "GlobalMsg"
-end
+local SharedValue = BridgeFolder:FindFirstChild("GlobalMsg") or Instance.new("StringValue", BridgeFolder)
+SharedValue.Name = "GlobalMsg"
 
 -- THEME COLORS
 local LAVENDER_WHITE = Color3.fromRGB(240, 235, 255) 
@@ -40,7 +32,7 @@ end
 
 -- 3. GUI ROOT
 local ScreenGui = Instance.new("ScreenGui", player.PlayerGui)
-ScreenGui.Name = "ErYx_V24_PrivateLink"
+ScreenGui.Name = "ErYx_V25_FinalFix"
 ScreenGui.ResetOnSpawn = false
 
 -- MAIN FRAME
@@ -51,7 +43,7 @@ Main.BackgroundColor3 = LAVENDER_WHITE
 Instance.new("UIStroke", Main).Color = WHITE
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 10)
 
--- HEADER / DRAG
+-- HEADER
 local Header = Instance.new("TextButton", Main)
 Header.Size = UDim2.new(1, 0, 0, 25)
 Header.BackgroundColor3 = WHITE
@@ -66,11 +58,13 @@ local ChatBox = Instance.new("ScrollingFrame", Main)
 ChatBox.Size = UDim2.new(0.94, 0, 0.65, 0)
 ChatBox.Position = UDim2.new(0.03, 0, 0.12, 0)
 ChatBox.BackgroundTransparency = 1
+ChatBox.CanvasSize = UDim2.new(0, 0, 0, 0)
 ChatBox.AutomaticCanvasSize = Enum.AutomaticSize.Y
 ChatBox.ScrollBarThickness = 2
+
 local Layout = Instance.new("UIListLayout", ChatBox)
 Layout.Padding = UDim.new(0, 5)
-Layout.VerticalAlignment = Enum.VerticalAlignment.Bottom
+Layout.SortOrder = Enum.SortOrder.LayoutOrder
 
 -- 4. NOTIFICATION TOAST
 local function CreatePopup(sender, text, creator)
@@ -97,13 +91,17 @@ local function CreatePopup(sender, text, creator)
     end)
 end
 
--- 5. ADD MESSAGE TO GUI
+-- 5. MESSAGE ADDER
+local msgIndex = 0
 local function addMsg(sender, text)
+    msgIndex = msgIndex + 1
     local creator = isOwner(sender)
+    
     local msgFrame = Instance.new("Frame", ChatBox)
     msgFrame.Size = UDim2.new(1, 0, 0, 0)
     msgFrame.AutomaticSize = Enum.AutomaticSize.Y
     msgFrame.BackgroundColor3 = creator and GOLD or SKY_BLUE
+    msgFrame.LayoutOrder = msgIndex
     Instance.new("UICorner", msgFrame)
 
     local txt = Instance.new("TextLabel", msgFrame)
@@ -114,21 +112,20 @@ local function addMsg(sender, text)
     txt.Font = creator and Enum.Font.SourceSansBold or Enum.Font.SourceSans
     txt.TextWrapped = true
     txt.TextXAlignment = Enum.TextXAlignment.Left
+    txt.TextColor3 = Color3.new(0,0,0)
 
-    task.defer(function() ChatBox.CanvasPosition = Vector2.new(0, ChatBox.AbsoluteContentSize.Y) end)
+    task.defer(function()
+        ChatBox.CanvasPosition = Vector2.new(0, ChatBox.AbsoluteContentSize.Y)
+    end)
     CreatePopup(sender, text, creator)
 end
 
--- 6. THE "SYNC" SCRIPT LOGIC
--- Listen for when the Shared Value changes (this is the script-to-script connection)
-SharedEvent.Changed:Connect(function()
-    local data = SharedEvent.Value
-    if data ~= "" then
-        local split = data:split("|||") -- We use a separator to tell sender apart from msg
-        local senderName = split[1]
-        local messageText = split[2]
-        if senderName and messageText then
-            addMsg(senderName, messageText)
+-- 6. PRIVATE LINK LISTENER
+SharedValue.Changed:Connect(function(val)
+    if val ~= "" then
+        local data = val:split("|||")
+        if #data >= 2 then
+            addMsg(data[1], data[2])
         end
     end
 end)
@@ -151,12 +148,14 @@ Instance.new("UICorner", Send)
 
 local function broadcast()
     if Input.Text ~= "" then
-        -- Instead of sending to game chat, we update the shared Value
-        SharedEvent.Value = player.Name .. "|||" .. Input.Text
+        -- Update value so other script users see it
+        local content = player.Name .. "|||" .. Input.Text
+        SharedValue.Value = content
         
-        -- Reset value quickly so it can be triggered again by the same person
-        task.wait(0.1)
-        SharedEvent.Value = ""
+        -- Reset slightly after to allow same message twice
+        task.delay(0.2, function()
+            if SharedValue.Value == content then SharedValue.Value = "" end
+        end)
         
         Input.Text = ""
     end
@@ -183,5 +182,3 @@ UserInputService.InputChanged:Connect(function(i)
     end
 end)
 UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then d = false end end)
-
-
