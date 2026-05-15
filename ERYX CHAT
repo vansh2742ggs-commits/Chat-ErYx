@@ -3,182 +3,193 @@ local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local player = Players.LocalPlayer
 
--- 1. ANIMATED ROLEPLAY NAME SYSTEM
-task.spawn(function()
-    local rpName = "🌌 ErYx Chat User🌌"
-    local remote = ReplicatedStorage:WaitForChild("RE"):WaitForChild("1RPNam1eTex1t")
-    if remote then remote:FireServer(rpName) end
-end)
-
--- 2. THE PRIVATE BRIDGE (Ensures it exists)
-local BridgeFolder = ReplicatedStorage:FindFirstChild("ErYx_Private_Bridge") or Instance.new("Folder", ReplicatedStorage)
-BridgeFolder.Name = "ErYx_Private_Bridge"
-
-local SharedValue = BridgeFolder:FindFirstChild("GlobalMsg") or Instance.new("StringValue", BridgeFolder)
-SharedValue.Name = "GlobalMsg"
-
--- THEME COLORS
-local LAVENDER_WHITE = Color3.fromRGB(240, 235, 255) 
-local WHITE = Color3.fromRGB(255, 255, 255)
-local SKY_BLUE = Color3.fromRGB(215, 240, 255) 
-local PURPLE = Color3.fromRGB(128, 0, 128)
-local GOLD = Color3.fromRGB(255, 220, 110)
-
--- OWNER CHECK
-local function isOwner(uName)
-    local owners = {["NOT_ALPHA4567"] = true, ["xCQxErYx_VaNsHx"] = true}
-    return owners[uName] or false
+-- --- THE "SECRET" BRIDGE ---
+-- This part checks for a common RemoteEvent to sync messages between script users.
+local function getRemote()
+    -- Common remote names for RP games that replicate strings
+    local names = {"RE", "1RPNam1eTex1t", "UpdateName", "ChangeDisplay"}
+    for _, name in pairs(names) do
+        local found = ReplicatedStorage:FindFirstChild(name, true)
+        if found and found:IsA("RemoteEvent") then return found end
+    end
+    return nil
 end
 
--- 3. GUI ROOT
+local SyncRemote = getRemote()
+
+-- --- UI CONSTRUCTION ---
 local ScreenGui = Instance.new("ScreenGui", player.PlayerGui)
-ScreenGui.Name = "ErYx_V25_FinalFix"
+ScreenGui.Name = "ErYx_V2_Delta"
 ScreenGui.ResetOnSpawn = false
 
--- MAIN FRAME
+-- 1. THE DRAGGABLE BLACK BALL
+local DragBall = Instance.new("ImageButton", ScreenGui)
+DragBall.Size = UDim2.new(0, 50, 0, 50)
+DragBall.Position = UDim2.new(0, 15, 0.5, -25) -- ~3cm from left
+DragBall.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+DragBall.Image = "rbxassetid://12443007133" -- Galaxy/Milky Way Icon
+local BallCorner = Instance.new("UICorner", DragBall)
+BallCorner.CornerRadius = UDim.new(1, 0)
+
+-- 2. MAIN GUI WINDOW (3.5in x 2in)
 local Main = Instance.new("Frame", ScreenGui)
-Main.Size = UDim2.new(0, 350, 0, 250) 
-Main.Position = UDim2.new(0.5, -175, 0.5, -125)
-Main.BackgroundColor3 = LAVENDER_WHITE
-Instance.new("UIStroke", Main).Color = WHITE
-Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 10)
+Main.Visible = false
+Main.Size = UDim2.new(0, 336, 0, 192)
+Main.Position = UDim2.new(0.5, -168, 0.5, -96)
+Main.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 15)
 
--- HEADER
-local Header = Instance.new("TextButton", Main)
-Header.Size = UDim2.new(1, 0, 0, 25)
-Header.BackgroundColor3 = WHITE
-Header.BackgroundTransparency = 0.5
-Header.Text = "   🌌 ErYx PRIVATE CHAT"
-Header.Font = Enum.Font.GothamBold
-Header.TextSize = 12
-Header.TextXAlignment = Enum.TextXAlignment.Left
+local Boundary = Instance.new("UIStroke", Main)
+Boundary.Color = Color3.fromRGB(128, 0, 128) -- Purple
+Boundary.Thickness = 2.5
 
--- CHAT DISPLAY
-local ChatBox = Instance.new("ScrollingFrame", Main)
-ChatBox.Size = UDim2.new(0.94, 0, 0.65, 0)
-ChatBox.Position = UDim2.new(0.03, 0, 0.12, 0)
-ChatBox.BackgroundTransparency = 1
-ChatBox.CanvasSize = UDim2.new(0, 0, 0, 0)
-ChatBox.AutomaticCanvasSize = Enum.AutomaticSize.Y
-ChatBox.ScrollBarThickness = 2
+-- 3. HEADER & CONTROLS
+local Title = Instance.new("TextLabel", Main)
+Title.Size = UDim2.new(1, 0, 0, 30)
+Title.BackgroundTransparency = 1
+Title.Text = "  ErYx Chat"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 14
+Title.TextXAlignment = Enum.TextXAlignment.Left
 
-local Layout = Instance.new("UIListLayout", ChatBox)
-Layout.Padding = UDim.new(0, 5)
+local Close = Instance.new("TextButton", Main)
+Close.Size = UDim2.new(0, 30, 0, 30)
+Close.Position = UDim2.new(1, -35, 0, 0)
+Close.Text = "X"
+Close.TextColor3 = Color3.fromRGB(255, 0, 0)
+Close.BackgroundTransparency = 1
+Close.TextSize = 20
+
+local Min = Instance.new("TextButton", Main)
+Min.Size = UDim2.new(0, 30, 0, 30)
+Min.Position = UDim2.new(1, -65, 0, 0)
+Min.Text = "-"
+Min.TextColor3 = Color3.fromRGB(255, 255, 255)
+Min.BackgroundTransparency = 1
+Min.TextSize = 25
+
+-- 4. SCROLLING CHAT AREA
+local ChatFrame = Instance.new("ScrollingFrame", Main)
+ChatFrame.Size = UDim2.new(0.9, 0, 0.6, 0)
+ChatFrame.Position = UDim2.new(0.05, 0, 0.15, 0)
+ChatFrame.BackgroundTransparency = 1
+ChatFrame.ScrollBarThickness = 2
+ChatFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+ChatFrame.CanvasSize = UDim2.new(0,0,0,0)
+
+local Layout = Instance.new("UIListLayout", ChatFrame)
+Layout.Padding = UDim.new(0, 6)
 Layout.SortOrder = Enum.SortOrder.LayoutOrder
 
--- 4. NOTIFICATION TOAST
-local function CreatePopup(sender, text, creator)
-    local popup = Instance.new("Frame", ScreenGui)
-    popup.Size = UDim2.new(0, 300, 0, 45)
-    popup.Position = UDim2.new(0.5, -150, -0.2, 0)
-    popup.BackgroundColor3 = creator and GOLD or WHITE
-    Instance.new("UICorner", popup)
-    Instance.new("UIStroke", popup).Color = PURPLE
-
-    local lbl = Instance.new("TextLabel", popup)
-    lbl.Size = UDim2.new(1, -20, 1, 0)
-    lbl.Position = UDim2.new(0, 10, 0, 0)
-    lbl.BackgroundTransparency = 1
-    lbl.Font = Enum.Font.SourceSansBold
-    lbl.Text = sender .. ": " .. text
-    lbl.TextWrapped = true
-
-    popup:TweenPosition(UDim2.new(0.5, -150, 0.05, 0), "Out", "Back", 0.4, true)
-    task.delay(3, function()
-        if popup then
-            popup:TweenPosition(UDim2.new(0.5, -150, -0.2, 0), "In", "Quad", 0.4, true, function() popup:Destroy() end)
-        end
-    end)
-end
-
--- 5. MESSAGE ADDER
-local msgIndex = 0
-local function addMsg(sender, text)
-    msgIndex = msgIndex + 1
-    local creator = isOwner(sender)
-    
-    local msgFrame = Instance.new("Frame", ChatBox)
-    msgFrame.Size = UDim2.new(1, 0, 0, 0)
-    msgFrame.AutomaticSize = Enum.AutomaticSize.Y
-    msgFrame.BackgroundColor3 = creator and GOLD or SKY_BLUE
-    msgFrame.LayoutOrder = msgIndex
-    Instance.new("UICorner", msgFrame)
-
-    local txt = Instance.new("TextLabel", msgFrame)
-    txt.Size = UDim2.new(1, -10, 1, 0)
-    txt.Position = UDim2.new(0, 5, 0, 0)
-    txt.BackgroundTransparency = 1
-    txt.Text = (creator and "👑 " or "") .. sender .. ": " .. text
-    txt.Font = creator and Enum.Font.SourceSansBold or Enum.Font.SourceSans
-    txt.TextWrapped = true
-    txt.TextXAlignment = Enum.TextXAlignment.Left
-    txt.TextColor3 = Color3.new(0,0,0)
-
-    task.defer(function()
-        ChatBox.CanvasPosition = Vector2.new(0, ChatBox.AbsoluteContentSize.Y)
-    end)
-    CreatePopup(sender, text, creator)
-end
-
--- 6. PRIVATE LINK LISTENER
-SharedValue.Changed:Connect(function(val)
-    if val ~= "" then
-        local data = val:split("|||")
-        if #data >= 2 then
-            addMsg(data[1], data[2])
-        end
-    end
-end)
-
--- 7. INPUT AREA
+-- 5. INPUT & SEND (PURPLE BUTTON WITH ICON)
 local Input = Instance.new("TextBox", Main)
-Input.Size = UDim2.new(0.7, 0, 0, 30)
-Input.Position = UDim2.new(0.03, 0, 0.85, 0)
-Input.BackgroundColor3 = WHITE
-Input.PlaceholderText = "Type to script users..." 
+Input.Size = UDim2.new(0.65, 0, 0, 35)
+Input.Position = UDim2.new(0.05, 0, 0.78, 0)
+Input.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+Input.TextColor3 = Color3.fromRGB(255, 255, 255)
+Input.PlaceholderText = "Type here..."
 Input.Text = ""
 Instance.new("UICorner", Input)
 
-local Send = Instance.new("TextButton", Main)
-Send.Size = UDim2.new(0, 70, 0, 30)
-Send.Position = UDim2.new(0.75, 0, 0.85, 0)
-Send.Text = "SEND"
-Send.BackgroundColor3 = WHITE
+local Send = Instance.new("ImageButton", Main)
+Send.Size = UDim2.new(0, 55, 0, 35)
+Send.Position = UDim2.new(0.75, 0, 0.78, 0)
+Send.BackgroundColor3 = Color3.fromRGB(128, 0, 128) -- Purple
+Send.Image = "rbxassetid://11231427218" -- Your PNG icon
 Instance.new("UICorner", Send)
 
-local function broadcast()
-    if Input.Text ~= "" then
-        -- Update value so other script users see it
-        local content = player.Name .. "|||" .. Input.Text
-        SharedValue.Value = content
-        
-        -- Reset slightly after to allow same message twice
-        task.delay(0.2, function()
-            if SharedValue.Value == content then SharedValue.Value = "" end
-        end)
-        
-        Input.Text = ""
+-- --- LOGIC ---
+
+local function AddMsg(user, msg, isSys)
+    local msgCount = #ChatFrame:GetChildren() - 1
+    if msgCount >= 30 then
+        ChatFrame:GetChildren()[2]:Destroy() -- Keep it under 30
     end
+
+    local bubble = Instance.new("Frame", ChatFrame)
+    bubble.Size = UDim2.new(1, 0, 0, 0)
+    bubble.AutomaticSize = Enum.AutomaticSize.Y
+    bubble.BackgroundColor3 = Color3.fromRGB(60, 60, 60) -- Gray
+    local bCorner = Instance.new("UICorner", bubble)
+    bCorner.CornerRadius = UDim.new(0, 8)
+
+    local txt = Instance.new("TextLabel", bubble)
+    txt.Size = UDim2.new(1, -10, 1, 0)
+    txt.Position = UDim2.new(0, 5, 0, 0)
+    txt.BackgroundTransparency = 1
+    txt.TextColor3 = Color3.fromRGB(255, 255, 255)
+    txt.Text = isSys and msg or user .. ": " .. msg
+    txt.TextWrapped = true
+    txt.Font = Enum.Font.SourceSans
+    txt.TextSize = 14
+    txt.TextXAlignment = Enum.TextXAlignment.Left
+
+    ChatFrame.CanvasPosition = Vector2.new(0, ChatFrame.AbsoluteContentSize.Y)
 end
 
-Send.MouseButton1Click:Connect(broadcast)
-Input.FocusLost:Connect(function(e) if e then broadcast() end end)
+-- Function to broadcast
+local function broadcast(text, system)
+    local tag = system and "ERYX_SYS" or "ERYX_MSG"
+    local encoded = tag .. "|||" .. player.Name .. "|||" .. text
+    
+    -- This fires the game's remote so others see it
+    if SyncRemote then
+        SyncRemote:FireServer(encoded)
+    end
+    -- Also add to self
+    AddMsg(player.Name, text, system)
+end
 
--- TOGGLE / DRAG
-local Toggle = Instance.new("TextButton", ScreenGui)
-Toggle.Size = UDim2.new(0, 35, 0, 35)
-Toggle.Position = UDim2.new(0, 10, 0.5, -17)
-Toggle.BackgroundColor3 = PURPLE
-Toggle.Text = "🌌"
-Instance.new("UICorner", Toggle).CornerRadius = UDim.new(1,0)
-Toggle.MouseButton1Click:Connect(function() Main.Visible = not Main.Visible end)
+-- Listener for other script users
+-- We "Hook" the remote to listen for incoming ErYx messages
+if SyncRemote then
+    SyncRemote.OnClientEvent:Connect(function(data)
+        if typeof(data) == "string" and data:find("ERYX_") then
+            local parts = data:split("|||")
+            if parts[1] == "ERYX_MSG" then
+                AddMsg(parts[2], parts[3], false)
+            elseif parts[1] == "ERYX_SYS" then
+                AddMsg(parts[2], parts[3], true)
+            end
+        end
+    end)
+end
 
+-- Initial Show Up
+task.delay(1, function()
+    broadcast("has showed up! Welcome", true)
+end)
+
+-- --- UI INTERACTIONS ---
+Send.MouseButton1Click:Connect(function()
+    if Input.Text ~= "" then
+        broadcast(Input.Text, false)
+        Input.Text = ""
+    end
+end)
+
+Min.MouseButton1Click:Connect(function()
+    Main.Visible = false
+    DragBall.Visible = true
+end)
+
+Close.MouseButton1Click:Connect(function()
+    ScreenGui:Destroy()
+end)
+
+DragBall.MouseButton1Click:Connect(function()
+    Main.Visible = true
+    DragBall.Visible = false
+end)
+
+-- DRAG LOGIC
 local d, ds, sp
-Header.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then d = true ds = i.Position sp = Main.Position end end)
+DragBall.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then d = true ds = i.Position sp = DragBall.Position end end)
 UserInputService.InputChanged:Connect(function(i)
     if d and i.UserInputType == Enum.UserInputType.MouseMovement then
         local delta = i.Position - ds
-        Main.Position = UDim2.new(sp.X.Scale, sp.X.Offset + delta.X, sp.Y.Scale, sp.Y.Offset + delta.Y)
+        DragBall.Position = UDim2.new(sp.X.Scale, sp.X.Offset + delta.X, sp.Y.Scale, sp.Y.Offset + delta.Y)
     end
 end)
 UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then d = false end end)
