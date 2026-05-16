@@ -1,16 +1,23 @@
+-- MERGED ERYX CHAT SYSTEM FOR DELTA EXECUTOR
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local player = Players.LocalPlayer
 
--- --- THE "SECRET" BRIDGE ---
--- This part checks for a common RemoteEvent to sync messages between script users.
+-- --- THE ADVANCED REMOTE BRIDGE ---
+-- Automatically finds a safe, replicating remote in whatever game you inject into
 local function getRemote()
-    -- Common remote names for RP games that replicate strings
-    local names = {"RE", "1RPNam1eTex1t", "UpdateName", "ChangeDisplay"}
+    local names = {
+        "RE", "1RPNam1eTex1t", "UpdateName", "ChangeDisplay", 
+        "SayMessageRequest", "Communication", "CustomChat"
+    }
     for _, name in pairs(names) do
         local found = ReplicatedStorage:FindFirstChild(name, true)
         if found and found:IsA("RemoteEvent") then return found end
+    end
+    -- Fallback: Look for ANY RemoteEvent if common names aren't found
+    for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
+        if obj:IsA("RemoteEvent") then return obj end
     end
     return nil
 end
@@ -18,20 +25,23 @@ end
 local SyncRemote = getRemote()
 
 -- --- UI CONSTRUCTION ---
-local ScreenGui = Instance.new("ScreenGui", player.PlayerGui)
+local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "ErYx_V2_Delta"
 ScreenGui.ResetOnSpawn = false
+-- Protect GUI from being detected by basic anti-cheats
+if syn and syn.protect_gui then syn.protect_gui(ScreenGui) end
+ScreenGui.Parent = player:WaitForChild("PlayerGui")
 
 -- 1. THE DRAGGABLE BLACK BALL
 local DragBall = Instance.new("ImageButton", ScreenGui)
 DragBall.Size = UDim2.new(0, 50, 0, 50)
-DragBall.Position = UDim2.new(0, 15, 0.5, -25) -- ~3cm from left
+DragBall.Position = UDim2.new(0, 15, 0.5, -25)
 DragBall.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-DragBall.Image = "rbxassetid://12443007133" -- Galaxy/Milky Way Icon
+DragBall.Image = "rbxassetid://12443007133"
 local BallCorner = Instance.new("UICorner", DragBall)
 BallCorner.CornerRadius = UDim.new(1, 0)
 
--- 2. MAIN GUI WINDOW (3.5in x 2in)
+-- 2. MAIN GUI WINDOW
 local Main = Instance.new("Frame", ScreenGui)
 Main.Visible = false
 Main.Size = UDim2.new(0, 336, 0, 192)
@@ -40,14 +50,14 @@ Main.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 15)
 
 local Boundary = Instance.new("UIStroke", Main)
-Boundary.Color = Color3.fromRGB(128, 0, 128) -- Purple
+Boundary.Color = Color3.fromRGB(128, 0, 128)
 Boundary.Thickness = 2.5
 
 -- 3. HEADER & CONTROLS
 local Title = Instance.new("TextLabel", Main)
 Title.Size = UDim2.new(1, 0, 0, 30)
 Title.BackgroundTransparency = 1
-Title.Text = "  ErYx Chat"
+Title.Text = "   ErYx Chat [Delta]"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.Font = Enum.Font.GothamBold
 Title.TextSize = 14
@@ -82,7 +92,7 @@ local Layout = Instance.new("UIListLayout", ChatFrame)
 Layout.Padding = UDim.new(0, 6)
 Layout.SortOrder = Enum.SortOrder.LayoutOrder
 
--- 5. INPUT & SEND (PURPLE BUTTON WITH ICON)
+-- 5. INPUT & SEND
 local Input = Instance.new("TextBox", Main)
 Input.Size = UDim2.new(0.65, 0, 0, 35)
 Input.Position = UDim2.new(0.05, 0, 0.78, 0)
@@ -95,8 +105,8 @@ Instance.new("UICorner", Input)
 local Send = Instance.new("ImageButton", Main)
 Send.Size = UDim2.new(0, 55, 0, 35)
 Send.Position = UDim2.new(0.75, 0, 0.78, 0)
-Send.BackgroundColor3 = Color3.fromRGB(128, 0, 128) -- Purple
-Send.Image = "rbxassetid://11231427218" -- Your PNG icon
+Send.BackgroundColor3 = Color3.fromRGB(128, 0, 128)
+Send.Image = "rbxassetid://11231427218"
 Instance.new("UICorner", Send)
 
 -- --- LOGIC ---
@@ -104,13 +114,14 @@ Instance.new("UICorner", Send)
 local function AddMsg(user, msg, isSys)
     local msgCount = #ChatFrame:GetChildren() - 1
     if msgCount >= 30 then
-        ChatFrame:GetChildren()[2]:Destroy() -- Keep it under 30
+        local firstBubble = ChatFrame:FindFirstChildOfClass("Frame")
+        if firstBubble then firstBubble:Destroy() end
     end
 
     local bubble = Instance.new("Frame", ChatFrame)
     bubble.Size = UDim2.new(1, 0, 0, 0)
     bubble.AutomaticSize = Enum.AutomaticSize.Y
-    bubble.BackgroundColor3 = Color3.fromRGB(60, 60, 60) -- Gray
+    bubble.BackgroundColor3 = isSys and Color3.fromRGB(75, 0, 130) or Color3.fromRGB(40, 40, 40)
     local bCorner = Instance.new("UICorner", bubble)
     bCorner.CornerRadius = UDim.new(0, 8)
 
@@ -119,51 +130,68 @@ local function AddMsg(user, msg, isSys)
     txt.Position = UDim2.new(0, 5, 0, 0)
     txt.BackgroundTransparency = 1
     txt.TextColor3 = Color3.fromRGB(255, 255, 255)
-    txt.Text = isSys and msg or user .. ": " .. msg
+    txt.Text = isSys and "[SYSTEM] " .. user .. " " .. msg or user .. ": " .. msg
     txt.TextWrapped = true
     txt.Font = Enum.Font.SourceSans
     txt.TextSize = 14
     txt.TextXAlignment = Enum.TextXAlignment.Left
 
-    ChatFrame.CanvasPosition = Vector2.new(0, ChatFrame.AbsoluteContentSize.Y)
+    task.defer(function()
+        ChatFrame.CanvasPosition = Vector2.new(0, ChatFrame.AbsoluteContentSize.Y)
+    end)
 end
 
--- Function to broadcast
+-- Network Broadcast Function
 local function broadcast(text, system)
-    local tag = system and "ERYX_SYS" or "ERYX_MSG"
-    local encoded = tag .. "|||" .. player.Name .. "|||" .. text
+    local prefix = system and "ERYX_SYS" or "ERYX_MSG"
+    -- Formats securely into a string token that standard game remotes will accept and pass down
+    local payload = prefix .. "|||" .. player.Name .. "|||" .. text
     
-    -- This fires the game's remote so others see it
     if SyncRemote then
-        SyncRemote:FireServer(encoded)
+        -- Exploit method to pass data into the game's network stream
+        SyncRemote:FireServer(payload)
+    else
+        AddMsg("Local Mode", "No suitable game remote found to link chats.", true)
     end
-    -- Also add to self
+    
+    -- Display it instantly for ourselves
     AddMsg(player.Name, text, system)
 end
 
--- Listener for other script users
--- We "Hook" the remote to listen for incoming ErYx messages
+-- Listener to catch chats from other exploiters on this script
 if SyncRemote then
     SyncRemote.OnClientEvent:Connect(function(data)
-        if typeof(data) == "string" and data:find("ERYX_") then
-            local parts = data:split("|||")
-            if parts[1] == "ERYX_MSG" then
-                AddMsg(parts[2], parts[3], false)
-            elseif parts[1] == "ERYX_SYS" then
-                AddMsg(parts[2], parts[3], true)
+        -- Only process data formatted by our specific secret script prefix
+        if typeof(data) == "string" and string.sub(data, 1, 5) == "ERYX_" then
+            local parts = string.split(data, "|||")
+            local tag = parts[1]
+            local senderName = parts[2]
+            local baseMessage = parts[3]
+            
+            -- Ignore our own echoes from the server
+            if senderName == player.Name then return end
+            
+            if tag == "ERYX_MSG" then
+                AddMsg(senderName, baseMessage, false)
+            elseif tag == "ERYX_SYS" then
+                AddMsg(senderName, baseMessage, true)
             end
         end
     end)
 end
 
--- Initial Show Up
-task.delay(1, function()
-    broadcast("has showed up! Welcome", true)
+-- Join Notice
+task.delay(1.5, function()
+    if SyncRemote then
+        broadcast("connected via Delta!", true)
+    else
+        AddMsg("SYSTEM", "Script loaded, running disconnected.", true)
+    end
 end)
 
 -- --- UI INTERACTIONS ---
 Send.MouseButton1Click:Connect(function()
-    if Input.Text ~= "" then
+    if Input.Text ~= "" and string.gsub(Input.Text, " ", "") ~= "" then
         broadcast(Input.Text, false)
         Input.Text = ""
     end
@@ -183,7 +211,7 @@ DragBall.MouseButton1Click:Connect(function()
     DragBall.Visible = false
 end)
 
--- DRAG LOGIC
+-- BALANCED DRAG LOGIC
 local d, ds, sp
 DragBall.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then d = true ds = i.Position sp = DragBall.Position end end)
 UserInputService.InputChanged:Connect(function(i)
